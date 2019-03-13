@@ -7,22 +7,22 @@
 #include "ADC/Adc.h"
 #include <string.h>
 
-using std::cout;
+using namespace std;
 using namespace BlackLib;
 
 int main(int argc, char * argv[]){
-	// analog pin 3 for reading and writing (r & w)
-	ADC adc(AINx::AIN3); 
+	// analog pin 5 for reading and writing (r & w)
+	ADC adc(AINx::AIN5); 
 
 	// instantiating pwm pin P9_22 for r & w
-	PWM pwm(P9_21); 
+	PWM pwm(P9_22); 
 
 	// Initializing pwm
 	pwm.setState(statePwm::run); 
 	
 	// Digital input and output
-	BlackGPIO pushbutton(GPIO_15, input);
-	BlackGPIO led(GPIO_50, output);
+	BlackGPIO pushbutton(GPIO_44, input);
+	BlackGPIO led(GPIO_39, output);
 
 	float dutyCycle;
 	int period = 1000000;
@@ -34,15 +34,19 @@ int main(int argc, char * argv[]){
 		if (val == "1"){
 			led.setValue(high);
 
+			cout << "val = " << val << " ";
+
 			dutyCycle  = adc.getPercentValue();
-			cout << "adc value = " << adc.getIntValue() << " ";
+			cout << "adc perc value = " << adc.getPercentValue() << " ";
 
 			pwm.setDutyCycle(dutyCycle*period/100.0);
 			cout << "pwm duty cycle = " << pwm.getDutyCycle() << " ";
 			cout << "division = " << dutyCycle*period/100.0 << endl;
 		}
 		else {
-			pwm.setDutyCycle(0);
+			cout << "val = " << " ";
+			cout << "pushbutton is off" << endl;
+			pwm.setDutyCycle(0.0);
 			led.setValue(low);
 		}
 	}
