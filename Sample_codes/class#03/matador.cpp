@@ -15,12 +15,12 @@ int  main()
 {
   // o processo que vai matar
 
-  int meu_pid;
-  int pid_vitima;
+ int meu_pid;
+ int pid_vitima;
 
-  meu_pid = getpid();
-    
+ meu_pid = getpid();
   
+ 
  printf( "Eu sou um programa matador de programa meu PID é %d\n", meu_pid );
  printf( "Digite o PID do processo que deve morrer: ");
  scanf( "%d", &pid_vitima);
@@ -32,7 +32,7 @@ int  main()
 }
 
 
-
+// matar matar(SIGKILL) parar(SIGSTOP) continuar (SIGCONT)
 
 
 

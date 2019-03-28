@@ -20,12 +20,9 @@
 #include <stdlib.h>
 
 
-
-
 void alarme (int sig)
 {
     printf("Alarme foi desligado. \n");
-    
 }
 
 int main()
@@ -34,23 +31,22 @@ int main()
     
     int pid;
     
-    
     printf("O alarme foi disparado. \n");
     
     if ( (pid = fork()) == 0)
     {
         // código do processo filho
-        printf("\n\n            Execução do Filho- vai dormir por 5 segundos\n");
+        printf("\n\nExecução do Filho - vai dormir por 5 segundos\n");
         sleep(5);
-        kill(getppid(), SIGALRM);
+        kill(getppid(), SIGKILL);
         sleep(2);
-        printf("            Execução do Filho- filho vai morrer\n\n");
+        printf("Execução do Filho - filho vai morrer\n\n");
         exit(0);
     }
     printf("Pai esperando pelo Sinal de alarme desligar (5s). \n");
     //(void) signal(SIGALRM, alarme);
-    printf(" Após a função signal()\n");
-    pause();
+    printf("Após a função alarme()\n");
+    pause(); // Pai fica esperando um alarme
     printf("O sinal de alarme chegou ao Pai .\n");
     sleep(12);
     printf("Processo Pai após Sleep\n");

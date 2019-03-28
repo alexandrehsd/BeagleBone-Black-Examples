@@ -14,11 +14,12 @@
 
 void ouch (int sig)
 { 
-  system("clear");
-  printf("Ah, Ah, Ah-  Eu não morro com : %d \n", sig);
-  printf("Eu só morro com kill \n");
-  printf("Digite o comando ps -a e identifique o meu número de PID\n");
-  printf("Depois, mate-me com kill  <pid> \n\n\n\n");
+  	system("clear");
+  	printf("Ah, Ah, Ah-  Eu não morro com : %d \n", sig);
+  	printf("Eu só morro com kill \n");
+  	printf("Digite o comando ps -a e identifique o \
+  			meu número de PID\n");
+  	printf("Depois, mate-me com kill  <pid> \n\n\n\n");
 }
 
 int main()

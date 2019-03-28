@@ -12,9 +12,9 @@
 
 void funcao1 (int sig)
 {
-  printf("Ah, Ah, Ah-  Eu não morro com : %d \n", sig);
-  printf("Pelo menos, da primeira vez. Tente denovo..\n");
-  signal(SIGINT, SIG_DFL);
+ 	printf("Ah, Ah, Ah-  Eu não morro com : %d \n", sig);
+	printf("Pelo menos, da primeira vez. Tente denovo..\n");
+	signal(SIGINT, SIG_DFL);
 }
 
 int main()
@@ -29,8 +29,7 @@ int main()
     if(tempo_de_sono >= 10 )
       {
         printf("Já se passaram 10 segundos. Agora vou me matar.\n");
-	kill(getpid(),SIGKILL); // Processo mandando um sinal si mesmo
-      
+		kill(getpid(),SIGKILL); // Processo mandando um sinal si mesmo
       }
   }
   exit(0);

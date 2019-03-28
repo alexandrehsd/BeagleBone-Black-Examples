@@ -13,20 +13,25 @@
 
 void funcao1 (int sig)
 {
-  system("clear");
-  printf("Ah, Ah, Ah-  Eu não morro com : %d \n", sig);
-  printf("Pelo menos, da primeira vez. Tente de novo..\n\n\n");
-  signal(SIGINT, SIG_DFL);
+	
+	static int count = 0;
+	system("clear");
+  	printf("Ah, Ah, Ah-  Eu não morro com : %d \n", sig);
+  	printf("Pelo menos, da primeira vez. Tente de novo..\n\n\n");
+
+	if(count == 3){
+  		signal(SIGINT, SIG_DFL);
+	}
+	count++;
 }
 
 int main()
 {
-  (void) signal(SIGINT, funcao1); // SIGINT - Terminal Interrupt
-
-  while(1) {
-    printf("Olá, Mundo Cruel! Vou dormir por  1 segundo.\n");
-    printf("Tente me matar com Ctrl-C.\n");
-    sleep(1);
-  }
+  	(void) signal(SIGINT, funcao1); // SIGINT - Terminal Interrupt
+  	while(1) {
+    	printf("Olá, Mundo Cruel! Vou dormir por  1 segundo.\n");
+    	printf("Tente me matar com Ctrl-C.\n");
+    	sleep(1);
+  	}
   // exit(0);
 }
