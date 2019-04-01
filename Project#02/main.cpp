@@ -14,6 +14,7 @@ Os leds devem piscar 6 vezes, entre intervalos de 0.4 segundos
 
 #define NBLINKS 6
 #define NRESPONSES 6
+#define TIME2ANS 10 // seconds
 
 using namespace BlackLib;
 
@@ -28,6 +29,8 @@ int main(int argc, char *argv[]){
 	BlackGPIO led_1(GPIO_68, output);
 	BlackGPIO led_2(GPIO_69, output);
 
+	BlackGPIO led_state_ready(GPIO_70, output);
+
 	// Digital inputs
 	BlackGPIO button_0(GPIO_7, input);
 	BlackGPIO button_1(GPIO_8, input);
@@ -41,6 +44,19 @@ int main(int argc, char *argv[]){
   	static int input[NRESPONSES];
   	
   	int score_counter = 5;
+
+  	while(score_counter > 0 && score_counter < 10){
+  		call_turn();
+
+  		sleep(4);
+
+  		led_state_ready.setValue(high);
+  		press_inputs();
+  		led_state_ready.setValue(low);
+
+  		score_counter = score();
+  		printf("Your current score is: %d\n", score_counter);
+  	}
 
 	exit(0);
 }
