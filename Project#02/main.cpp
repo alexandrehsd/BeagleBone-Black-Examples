@@ -1,10 +1,10 @@
 /*
 REQUISITOS DO JOGO
 
-Os leds devem piscar 6 vezes, entre intervalos de 0.4 segundos
+Os leds devem piscar 6 vezes, entre intervalos de 0.7 segundos
+O jogador só pode apertar um botão uma vez a cada 0.3 segundos
 
 */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -27,17 +27,16 @@ int score(int score_counter, int input[], int output[]);
 
 int main(int argc, char *argv[]){
 	// Digital outputs
-	BlackGPIO led_0(GPIO_35, output);
-	BlackGPIO led_1(GPIO_39, output);
-	BlackGPIO led_2(GPIO_38, output);
+	BlackGPIO led_0(GPIO_32, output);
+	BlackGPIO led_1(GPIO_36, output);
+	BlackGPIO led_2(GPIO_33, output);
 
-	BlackGPIO led_state_ready(GPIO_34, output);
+	BlackGPIO led_state_ready(GPIO_37, output);
 
 	// Digital inputs
-	BlackGPIO button_0(GPIO_33, input);
-	BlackGPIO button_1(GPIO_37, input);
-	BlackGPIO button_2(GPIO_63, input);
-
+	BlackGPIO button_0(GPIO_46, input);
+	BlackGPIO button_1(GPIO_26, input);
+	BlackGPIO button_2(GPIO_44, input);
 
 	BlackGPIO leds[3] = {led_0, led_1, led_2};
 	BlackGPIO buttons[3] = {button_0, button_1, button_2};
@@ -48,6 +47,7 @@ int main(int argc, char *argv[]){
   	int score_counter = 5;
 
   	while(score_counter > 0 && score_counter < 10){
+  		printf("%s\n", "This is a new turn, fasten your seatbelst!");
   		call_turn(leds, output);
 
   		sleep(4);
@@ -76,6 +76,7 @@ void call_turn(BlackGPIO leds[], int output[]){
   	int j_led;
 
   	for(i_rand = 0; i_rand<NBLINKS; i_rand++){
+  		printf("Blink number: %d\n", i+1);
   		output[i_rand] = rand() % 3;
 
   		for(j_led = 0; j_led<NDIG_OUTPUT; j_led++)
@@ -83,16 +84,19 @@ void call_turn(BlackGPIO leds[], int output[]){
 
   		switch(output[i_rand]){
   			case 0:
-  				leds[i_rand].setValue(high);
-  				usleep(400000);
+  				leds[output[i_rand]].setValue(high);
+  				printf("ANSWER -> LED NUMBER: %d\n", output[i_rand]);
+  				usleep(700000);
   				break;
   			case 1:
-  				leds[i_rand].setValue(high);
-  				usleep(400000);
+  				leds[output[i_rand]].setValue(high);
+  				printf("ANSWER -> LED NUMBER: %d\n", output[i_rand]);
+  				usleep(700000);
   				break;
   			case 2:
-  				leds[i_rand].setValue(high);
-  				usleep(400000);
+  				leds[output[i_rand]].setValue(high);
+  				printf("ANSWER -> LED NUMBER: %d\n", output[i_rand]);
+  				usleep(700000);
   				break;
   			default:
   				printf("%s\n", "Wrong assignement for a digital output!");
@@ -113,12 +117,15 @@ void press_inputs(BlackGPIO buttons[], int input[]){
 
 	while(response_counter < NRESPONSES){
 
-		for (i = 0; i < NDIG_INPUT; i++)	{
+		for (i = 0; i < NDIG_INPUT; i++){
 			strs_b[i] = buttons[i].getValue();
 
 			if(strs_b[i] == "1"){
+				printf("%s\n", "Hey look, a button was pressed!");
 				input[response_counter] = i;
-				continue;
+				response_counter++;
+				usleep(300000); // time between pressed buttons
+				break;
 			}
 		}
 
@@ -127,8 +134,6 @@ void press_inputs(BlackGPIO buttons[], int input[]){
 		for (int i = 0; i < 3; ++i)
 			buttons[i].setValue(low);
 		*/
-
-		response_counter++;
 	}
 }
 
