@@ -5,7 +5,8 @@ Este programa recebe o pid de um processo e para a instrução
 	2 - Mata o processo
 	3 - Seta o processo para rodar apenas no core 0
 */
-
+#include<sys/types.h>
+#include<signal.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <iostream>
