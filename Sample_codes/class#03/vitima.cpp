@@ -25,14 +25,12 @@ int main()
 
   meu_pid = getpid();
     
- 
   //(void) signal(SIGKILL, sinal_de_morte);
 
-  while(1)
-  {
-    printf("Meu PID é: %d \n", meu_pid);
-    printf("Vou dormir por 2 segundos e esperar alguém me matar \n");
-    sleep(2);
+  printf("Meu PID é: %d \n", meu_pid);
+  while(1){
+    
+    //printf("Vou dormir por 2 segundos e esperar alguém me matar \n");
   }
 
   //(void) signal(SIGKILL, sinal_morte);
