@@ -16,6 +16,25 @@
 //using std::cout;
 using namespace std;
 
+
+// função para simular carregamento da CPU
+void carga(int k)
+{
+  float f = 0.999999;
+  for(int i=0; i<k; i++)
+    {
+      f = f*f*f*f*f;
+      f = 1.56;
+        for(int j=0; j<k; j++)
+           {
+	     f = sin(f)*sin(f)*f*f*f;
+
+            }
+    }
+
+}
+
+
 int main( ){
 
      clock_t time_1, time_2;
@@ -62,7 +81,7 @@ int main( ){
     //            Teste estas opções a baixo e tire as suas conclusões sobre os comandos nice e setpriority()
     //  -----------------------------------------------------------------------------------------------
     //
-    // nice(1);
+    //nice(1);
     //cout << "valor da prioridade do processo, após o segundo nice(): " << getpriority(PRIO_PROCESS, 0 ) <<endl;
     
     
