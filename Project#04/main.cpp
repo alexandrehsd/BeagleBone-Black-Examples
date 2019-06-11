@@ -1,296 +1,406 @@
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
+#include <iostream>
 #include <pthread.h>
-#include <semaphore.h>
-#include <sys/syscall.h>
-#include <sys/resource.h>
-#include <math.h>
 #include "BlackGPIO/BlackGPIO.h"
 #include "ADC/Adc.h"
+#include <unistd.h> //sleep
+#include <time.h>   //nanosleep
+#include <sched.h>  //sched
 
+using namespace std;
 using namespace BlackLib;
 
-int valueADC1, valueADC2, valueADC3, valueADC4;
+#define MIN_TIME 500
+#define MAX_TIME 4500
+#define SECOND 1000
 
-ADC adc1(AIN0);
-ADC adc2(AIN2);
-ADC adc3(AIN6);
-ADC adc4(AIN4);
-BlackGPIO led1(GPIO_67, output);
-BlackGPIO led2(GPIO_68, output);
-BlackGPIO led3(GPIO_44, output);
-BlackGPIO led4(GPIO_26, output);
-BlackGPIO led5(GPIO_46, output);
-BlackGPIO led6(GPIO_65, output);
-BlackGPIO led7(GPIO_61, output);
-BlackGPIO led8(GPIO_66, output);
-BlackGPIO led9(GPIO_69, output);
-BlackGPIO led10(GPIO_45, output);
-BlackGPIO led11(GPIO_47, output);
-BlackGPIO led12(GPIO_27, output);
-//BlackGPIO led13(GPIO_60, output);
-BlackGPIO led14(GPIO_48, output);
-BlackGPIO led15(GPIO_49, output);
-BlackGPIO led16(GPIO_60, output);
-BlackGPIO led17(GPIO_20, output);
-//BlackGPIO led18(GPIO_20, output);
-pthread_t thread1, thread2, thread3, thread4;
-pthread_mutex_t semaphore1, semaphore2, semaphore3, semaphore4, semaphore5, semaphore6, semaphore7;
+enum Rails {
+    rail1 = 0,   /* train 1 */
+    rail2 = 1,   /* train 1 */
+    rail3 = 2,   /* train 1 */
+    rail4 = 3,   /* train 2 */
+    rail5 = 4,   /* train 2 */
+    rail6 = 5,   /* train 2 */
+    rail7 = 6,   /* train 3 */
+    rail8 = 7,   /* train 3 */
+    rail9 = 8,   /* train 4 */
+    rail22 = 9,  /* train 2 */       
+    rail33 = 10, /* train 4 */
+    rail55 = 11, /* train 3 */
+    rail66 = 12, /* train 4 */
+    rail88 = 13  /* train 4 */
+};
 
-void createThread (void);
-void createMutex (void);
-void *train1 (void *arg);
-void *train2 (void *arg);
-void *train3 (void *arg);
-void *train4 (void *arg);
-int reloadvelADC1 (void);
-int reloadvelADC2 (void);
-int reloadvelADC3 (void);
-int reloadvelADC4 (void);
-void load (int k);
-void printAndWait (int train, int loc, int vel);
+enum Trains
+{
+    train1 = 0,
+    train2 = 1,
+    train3 = 2,
+    train4 = 3
+};
+
+/* array Structure to hold the waiting times of each train (or thread) */
+struct timespec times[4];
+
+/* GPIO outputs array-like list */
+BlackGPIO leds[14] = {BlackGPIO(GPIO_67, output, FastMode),
+                      BlackGPIO(GPIO_68, output, FastMode),
+                      BlackGPIO(GPIO_44, output, FastMode),
+                      BlackGPIO(GPIO_26, output, FastMode),
+                      BlackGPIO(GPIO_46, output, FastMode),
+                      BlackGPIO(GPIO_65, output, FastMode),
+                      BlackGPIO(GPIO_61, output, FastMode),
+                      BlackGPIO(GPIO_66, output, FastMode),
+                      BlackGPIO(GPIO_69, output, FastMode),
+                      BlackGPIO(GPIO_45, output, FastMode),
+                      BlackGPIO(GPIO_47, output, FastMode),
+                      BlackGPIO(GPIO_27, output, FastMode),
+                      BlackGPIO(GPIO_48, output, FastMode),
+                      BlackGPIO(GPIO_49, output, FastMode)}; 
+
+/* Mutexes for each Rail */
+pthread_mutex_t mtx_rail[9] = {PTHREAD_MUTEX_INITIALIZER,
+                               PTHREAD_MUTEX_INITIALIZER,
+                               PTHREAD_MUTEX_INITIALIZER,
+                               PTHREAD_MUTEX_INITIALIZER,
+                               PTHREAD_MUTEX_INITIALIZER,
+                               PTHREAD_MUTEX_INITIALIZER,
+                               PTHREAD_MUTEX_INITIALIZER,
+                               PTHREAD_MUTEX_INITIALIZER,
+                               PTHREAD_MUTEX_INITIALIZER};
+
+/* Mutexes for train velocity changing */
+pthread_mutex_t mutex[4] = {PTHREAD_MUTEX_INITIALIZER,
+                            PTHREAD_MUTEX_INITIALIZER,
+                            PTHREAD_MUTEX_INITIALIZER,
+                            PTHREAD_MUTEX_INITIALIZER};    
+
+void* train_1(void* argc){
+
+    struct timespec t;
+
+    while (true){
+        /* the current railroad is only available when train 1 
+         * is able to lock the mutex of the next railroad.
+         */
+        
+        pthread_mutex_lock(&mtx_rail[rail1]);
+        leds[rail3].setValue(low);
+        leds[rail1].setValue(high);
+        pthread_mutex_unlock(&mtx_rail[rail3]);
+
+        /* train 1 stays on the railroad for t nanoseconds */
+        pthread_mutex_lock(&mutex[train1]);
+        t = times[train1];
+        pthread_mutex_unlock(&mutex[train1]);
+
+        cout << "Train 1 is on railroad 1\n";
+        nanosleep(&t, NULL);
+
+        /* To avoid deadlock in the region among the rails 2, 3, and 6
+         * before holding the railroad 2, train 1 must lock the railroad
+         * 3 for himself */
+
+        pthread_mutex_lock(&mtx_rail[rail3]);{
+            pthread_mutex_lock(&mtx_rail[rail2]);{
+                leds[rail1].setValue(low);
+                leds[rail2].setValue(high);
+                pthread_mutex_unlock(&mtx_rail[rail1]);
+
+                pthread_mutex_lock(&mutex[train1]);
+                t = times[train1];
+                pthread_mutex_unlock(&mutex[train1]);
+
+                cout << "Train 1 is on railroad 2\n";
+                nanosleep(&t, NULL);
+
+                leds[rail2].setValue(low);
+                leds[rail3].setValue(high);
+            }
+        pthread_mutex_unlock(&mtx_rail[rail2]);
+
+        pthread_mutex_lock(&mutex[train1]);
+        t = times[&train1];
+        pthread_mutex_unlock(&mutex[train1]);
+
+        cout << "Train 1 is on railroad 3\n";
+        nanosleep(&t, NULL);
+        }
+    }
+}
+
+void* train_2(void* argc){
+
+    struct timespec t;
+
+    while (true){
+        
+        /* Getting the lock for the railroad 4 */
+
+        pthread_mutex_lock(&mtx_rail[rail4]);
+        leds[rail22].setValue(low);
+        leds[rail4].setValue(high);
+        pthread_mutex_unlock(&mtx_rail[rail2]);
+
+        pthread_mutex_lock(&mutex[train2]);
+        t = times[train2];
+        pthread_mutex_unlock(&mutex[train2]);
+
+        cout << "Train 2 is on railroad 4\n";
+        nanosleep(&t, NULL);
+
+        /* Getting the lock for the railroad 5 */
+
+        pthread_mutex_lock(&mtx_rail[rail5]);
+        leds[rail4].setValue(low);
+        leds[rail5].setValue(high);
+        pthread_mutex_unlock(&mtx_rail[rail4]);
+
+        pthread_mutex_lock(&mutex[train2]);
+        t = times[train2];
+        pthread_mutex_unlock(&mutex[train2]);
+
+        cout << "Train 2 is on railroad 5\n";
+        nanosleep(&t, NULL);
+
+        /* Getting the lock for the railroad 6 */
+
+        pthread_mutex_lock(&mtx_rail[rail6]);
+        leds[rail5].setValue(low);
+        leds[rail6].setValue(high);
+        pthread_mutex_unlock(&mtx_rail[rail5]);
+
+        pthread_mutex_lock(&mutex[train2]);
+        t = times[train2];
+        pthread_mutex_unlock(&mutex[train2]);
+
+        cout << "Train 2 is on railroad 6\n";
+        nanosleep(&t, NULL);
+
+        /* Getting the lock for the railroad 2 */
+
+        pthread_mutex_lock(&mtx_rail[rail2]);
+        leds[rail6].setValue(low);
+        leds[rail2].setValue(high);
+        pthread_mutex_unlock(&mtx_rail[rail6]);
+
+        pthread_mutex_lock(&mutex[train2]);
+        t = times[train2];
+        pthread_mutex_unlock(&mutex[train2]);
+
+        cout << "Train 2 is on railroad 2\n";
+        nanosleep(&t, NULL);
+    }
+}
+
+void* train_3(void* argc){
+    
+    struct timespec t;
+
+    while (true){
+
+        /* Getting the lock for the railroad 7 */
+
+        pthread_mutex_lock(&mtx_rail[rail7]);
+        leds[rail5].setValue(low);
+        leds[rail7].setValue(high);
+        pthread_mutex_unlock(&mtx_rail[rail5]);
+
+        pthread_mutex_lock(&mutex[train3]);
+        t = times[train3];
+        pthread_mutex_unlock(&mutex[train3]);
+
+        cout << "Train 3 is on railroad 7\n";
+        nanosleep(&t, NULL); 
+
+        /* To avoid deadlock in the region among the rails 5, 6, and 8
+         * before holding the railroad 8, train 3 must lock the railroad
+         * 5 for himself */
+
+        pthread_mutex_lock(&mtx_rail[rail5]);{
+            pthread_mutex_lock(&mtx_rail[rail8]);{
+                leds[rail7].setValue(low);
+                leds[rail8].setValue(high);
+                pthread_mutex_unlock(&mtx_rail[rail7]);
+
+                pthread_mutex_lock(&mutex[train3]);
+                t = times[train3];
+                pthread_mutex_unlock(&mutex[train3]);
+
+                cout << "Train 3 is on railroad 8\n";
+                nanosleep(&t, NULL);
+
+                leds[rail8].setValue(low);
+                leds[rail55].setValue(high);
+            }
+        pthread_mutex_unlock(&mtx_rail[rail8]);
+
+        pthread_mutex_lock(&mutex[train3]);
+        t = times[&train3];
+        pthread_mutex_unlock(&mutex[train3]);
+
+        cout << "Train 3 is on railroad 5\n";
+        nanosleep(&t, NULL);
+        }
+    }    
+}
+
+void* train_4(void* argc){
+
+    struct timespec t;
+
+    while (true){
+        
+        /* Getting the lock for the railroad 9 */
+
+        pthread_mutex_lock(&mtx_rail[rail9]);
+        leds[rail88].setValue(low);
+        leds[rail9].setValue(high);
+        pthread_mutex_unlock(&mtx_rail[rail8]);
+
+        pthread_mutex_lock(&mutex[train4]);
+        t = times[train4];
+        pthread_mutex_unlock(&mutex[train4]);
+
+        cout << "Train 4 is on railroad 9\n";
+        nanosleep(&t, NULL);
+
+        /* Getting the lock for the railroad 3 */
+
+        pthread_mutex_lock(&mtx_rail[rail3]);
+        leds[rail9].setValue(low);
+        leds[rail33].setValue(high);
+        pthread_mutex_unlock(&mtx_rail[rail9]);
+
+        pthread_mutex_lock(&mutex[train4]);
+        t = times[train4];
+        pthread_mutex_unlock(&mutex[train4]);
+
+        cout << "Train 4 is on railroad 3\n";
+        nanosleep(&t, NULL);
+
+        /* Getting the lock for the railroad 6 */
+
+        pthread_mutex_lock(&mtx_rail[rail6]);
+        leds[rail33].setValue(low);
+        leds[rail66].setValue(high);
+        pthread_mutex_unlock(&mtx_rail[rail3]);
+
+        pthread_mutex_lock(&mutex[train4]);
+        t = times[train4];
+        pthread_mutex_unlock(&mutex[train4]);
+
+        cout << "Train 4 is on railroad 6\n";
+        nanosleep(&t, NULL);
+
+        /* Getting the lock for the railroad 8 */
+
+        pthread_mutex_lock(&mtx_rail[rail8]);
+        leds[rail66].setValue(low);
+        leds[rail88].setValue(high);
+        pthread_mutex_unlock(&mtx_rail[rail6]);
+
+        pthread_mutex_lock(&mutex[train4]);
+        t = times[train4];
+        pthread_mutex_unlock(&mutex[train4]);
+
+        cout << "Train 4 is on railroad 8\n";
+        nanosleep(&t, NULL);
+    }
+}
 
 int main(){
-    createMutex();
-    createThread();
     
-    while(1){
-		valueADC1 = adc1.getIntValue();
-		valueADC2 = adc2.getIntValue();
-		valueADC3 = adc3.getIntValue();
-		valueADC4 = adc4.getIntValue();
-        usleep(1000000);
-    }
+    /* allocating an array of threads (trains) */
+    pthread_t threads[4];
 
+    /* Speeds of the trains */
+    ADC analog_input[4] = {
+                            ADC(AIN0), /* potentiometer - speed of the train 1 */
+                            ADC(AIN2), /* potentiometer - speed of the train 2 */
+                            ADC(AIN6), /* potentiometer - speed of the train 3 */
+                            ADC(AIN4)  /* potentiometer - speed of the train 4 */
+                          }
+
+    /* Setting threads priorities to the same ground */
+    struct sched_param priority;
+    priority.sched_priority = 5;
+
+    /* Setting priority of main thread to 5 */
+    sched_setscheduler(0, SCHED_FIFO, &priority);
+
+    pthread_create(&threads[train1], NULL, train_1, NULL);
+    pthread_create(&threads[train2], NULL, train_2, NULL);
+    pthread_create(&threads[train3], NULL, train_3, NULL);
+    pthread_create(&threads[train4], NULL, train_4, NULL);
+
+    /* Setting priority of train threads to 1 
+     * this ensures that the main thread will 
+     * not lose control over the other threads
+     */
+    priority.sched_priority = 1;
+    pthread_setschedparam(threads[train1], SCHED_FIFO, &priority);
+    pthread_setschedparam(threads[train2], SCHED_FIFO, &priority);
+    pthread_setschedparam(threads[train3], SCHED_FIFO, &priority);
+    pthread_setschedparam(threads[train4], SCHED_FIFO, &priority);
+
+    int value = 0;
+    
+    while (true){
+
+        /* Getting analog input for the train 1 
+         * and set the analog input to the range 
+         * of 500 to 4500 ms
+         */
+
+        value = MIN_TIME + MAX_TIME * analog_input[train1].getPercentValue() / 100.0;
+
+        pthread_mutex_lock(&mutex[train1]);{
+            times[train1].tv_sec = value / SECOND;
+            times[train1].tv_nsec = (valor % SECOND) * 1000000L;
+            cout << "Sleeping time of train 1: " << times[train1].tv_sec << 
+                ":" times[train1].tv_nsec << "\n";
+        }
+        pthread_mutex_unlock(&mutex[train1]);
+
+        /* Getting analog input for the train 2 */
+        
+        value = MIN_TIME + MAX_TIME * analog_input[train2].getPercentValue() / 100.0;
+
+        pthread_mutex_lock(&mutex[train2]);{
+            times[train2].tv_sec = value / SECOND;
+            times[train2].tv_nsec = (valor % SECOND) * 1000000L;
+            cout << "Sleeping time of train 2: " << times[train2].tv_sec << 
+                ":" times[train2].tv_nsec << "\n";
+        }
+        pthread_mutex_unlock(&mutex[train2]);
+        
+        /* Getting analog input for the train 3 */
+        
+        value = MIN_TIME + MAX_TIME * analog_input[train3].getPercentValue() / 100.0;
+
+        pthread_mutex_lock(&mutex[train3]);{
+            times[train3].tv_sec = value / SECOND;
+            times[train3].tv_nsec = (valor % SECOND) * 1000000L;
+            cout << "Sleeping time of train 3: " << times[train3].tv_sec << 
+                ":" times[train3].tv_nsec << "\n";
+        }
+        pthread_mutex_unlock(&mutex[train3]);
+
+        /* Getting analog input for the train 4 */
+        
+        value = MIN_TIME + MAX_TIME * analog_input[train3].getPercentValue() / 100.0;
+
+        pthread_mutex_lock(&mutex[train4]);{
+            times[train4].tv_sec = value / SECOND;
+            times[train4].tv_nsec = (valor % SECOND) * 1000000L;
+            cout << "Sleeping time of train 4: " << times[train4].tv_sec << 
+                ":" times[train4].tv_nsec << "\n";
+        }
+        pthread_mutex_unlock(&mutex[train4]);
+
+        sleep(1);
+
+    }
+    
     return 0;
-}
-
-
-void printAndWait (int train, int loc, int wait){
-    int vel = ((-1)*wait)+5;
-    printf("Sou o trem %d, estou na linha %d, com velocidade %d. \n", train, loc, vel);
-    usleep(wait*1000000);
-}
-
-void createThread (void){
-    int res;
-
-    res = pthread_create(&thread1, NULL, train1, NULL);
-    if (res != 0) {
-        perror("Criação da Thread 1 falhou.");
-        exit(EXIT_FAILURE);
-    }
-
-    res = pthread_create(&thread2, NULL, train2, NULL);
-    if (res != 0) {
-        perror("Criação da Thread 2 falhou.");
-        exit(EXIT_FAILURE);
-    }
-
-    res = pthread_create(&thread3, NULL, train3, NULL);
-    if (res != 0) {
-        perror("Criação da Thread 3 falhou.");
-        exit(EXIT_FAILURE);
-    }
-
-    res = pthread_create(&thread4, NULL, train4, NULL);
-    if (res != 0) {
-        perror("Criação da Thread 4 falhou.");
-        exit(EXIT_FAILURE);
-    }
-}
-
-void createMutex (void){
-    int res;
-
-    res = pthread_mutex_init(&semaphore1, NULL);
-    if (res != 0){
-        perror("Criação do Mutex 1 falhou.");
-        exit(EXIT_FAILURE);
-    }
-
-    res = pthread_mutex_init(&semaphore2, NULL);
-    if (res != 0){
-        perror("Criação do Mutex 2 falhou.");
-        exit(EXIT_FAILURE);
-    }
-
-    res = pthread_mutex_init(&semaphore3, NULL);
-    if (res != 0){
-        perror("Criação do Mutex 3 falhou.");
-        exit(EXIT_FAILURE);
-    }
-
-    res = pthread_mutex_init(&semaphore4, NULL);
-    if (res != 0){
-        perror("Criação do Mutex 4 falhou.");
-        exit(EXIT_FAILURE);
-    }
-
-    res = pthread_mutex_init(&semaphore5, NULL);
-    if (res != 0){
-        perror("Criação do Mutex 5 falhou.");
-        exit(EXIT_FAILURE);
-    }
-    res = pthread_mutex_init(&semaphore6, NULL);
-    if (res != 0){
-        perror("Criação do Mutex 6 falhou.");
-        exit(EXIT_FAILURE);
-    }
-    res = pthread_mutex_init(&semaphore7, NULL);
-    if (res != 0){
-        perror("Criação do Mutex 7 falhou.");
-        exit(EXIT_FAILURE);
-    }
-}
-
-
-int reloadvelADC1 (void){
-    int vel;
-    vel = ((valueADC1-190)/1000)+1;
-    return vel;
-}
-
-int reloadvelADC2 (void){
-    int vel;
-    vel = ((valueADC2-190)/1000)+1;
-    return vel;
-}
-
-int reloadvelADC3 (void){
-    int vel;
-    vel = ((valueADC3-190)/1000)+1;
-    return vel;
-}
-
-int reloadvelADC4 (void){
-    int vel;
-    vel = ((valueADC4-190)/1000)+1;
-    return vel;
-}
-
-void *train1 (void *arg){
-    int vel=0;
-    while (1){
-        vel = reloadvelADC1();
-        led1.setValue(high);
-		led4.setValue(low);
-        printAndWait(1, 1, vel);
-        vel = reloadvelADC1();
-        pthread_mutex_lock(&semaphore6);
-        pthread_mutex_lock(&semaphore1);
-        led2.setValue(high);
-		led1.setValue(low);
-        printAndWait(1, 2, vel);
-        vel = reloadvelADC1();    
-        pthread_mutex_lock(&semaphore2);
-        pthread_mutex_unlock(&semaphore6);
-        pthread_mutex_unlock(&semaphore1);    
-        led3.setValue(high);      
-		led2.setValue(low);
-        printAndWait(1, 3, vel);
-        vel = reloadvelADC1();
-        pthread_mutex_unlock(&semaphore2);
-        led4.setValue(high);
-		led3.setValue(low);
-        printAndWait(1, 4, vel);
-        vel = reloadvelADC1();
-    }
-}
-
-void *train2 (void *arg){
-    int vel=0;
-    while (1){
-        vel = reloadvelADC2();
-        led5.setValue(high);
-		led8.setValue(low);
-        printAndWait(2, 5, vel);
-        vel = reloadvelADC2();
-        pthread_mutex_lock(&semaphore7);
-        pthread_mutex_lock(&semaphore3);
-        led6.setValue(high);
-        led5.setValue(low);
-        printAndWait(2, 6, vel);
-        vel = reloadvelADC2();
-        pthread_mutex_lock(&semaphore6);
-        pthread_mutex_lock(&semaphore4);
-        pthread_mutex_unlock(&semaphore7);
-        pthread_mutex_unlock(&semaphore3);
-        led7.setValue(high);
-	    led6.setValue(low);
-        printAndWait(2, 7, vel);
-        vel = reloadvelADC2();
-        pthread_mutex_lock(&semaphore1);
-        pthread_mutex_unlock(&semaphore4);
-        pthread_mutex_unlock(&semaphore6);
-        led8.setValue(high);
-		led7.setValue(low);
-        printAndWait(2, 8, vel);
-        vel = reloadvelADC2();
-        pthread_mutex_unlock(&semaphore1);
-    }
-}
-
-void *train3 (void *arg){
-    int vel=0;
-    while (1){
-        vel = reloadvelADC3();
-        led9.setValue(high);
-		led12.setValue(low);
-        printAndWait(3, 9, vel);
-        vel = reloadvelADC3();
-        led10.setValue(high);
-		led9.setValue(low);
-        printAndWait(3, 10, vel);
-        vel = reloadvelADC3();
-        pthread_mutex_lock(&semaphore7);
-        pthread_mutex_lock(&semaphore5);
-        led11.setValue(high);
-		led10.setValue(low);
-        printAndWait(3, 11, vel);
-        vel = reloadvelADC3();
-        pthread_mutex_lock(&semaphore3);
-        pthread_mutex_unlock(&semaphore5);
-        pthread_mutex_unlock(&semaphore7);
-        led12.setValue(high);
-		led11.setValue(low);
-        printAndWait(3, 12, vel);
-        vel = reloadvelADC3();
-        pthread_mutex_unlock(&semaphore3);
-    }
-}
-
-void *train4 (void *arg){
-    int vel=0;
-    while (1){
-        vel = reloadvelADC4();
-		led17.setValue(high);
-        printAndWait(4, 13, vel);
-        vel = reloadvelADC4();
-        pthread_mutex_lock(&semaphore2);
-		led14.setValue(high);
-		led17.setValue(low);
-        printAndWait(4, 14, vel);
-        vel = reloadvelADC4();
-        pthread_mutex_lock(&semaphore4);
-        pthread_mutex_unlock(&semaphore2);
-		led15.setValue(high);
-		led14.setValue(low);
-        printAndWait(4, 15, vel);
-        vel = reloadvelADC4();
-        pthread_mutex_lock(&semaphore5);
-        pthread_mutex_unlock(&semaphore4);
-		led16.setValue(high);
-		led15.setValue(low);
-        printAndWait(4, 16, vel);
-        vel = reloadvelADC4();
-        pthread_mutex_unlock(&semaphore5);
-		led17.setValue(high);
-		led16.setValue(low);
-        printAndWait(4, 17, vel);
-        vel = reloadvelADC4();
-        printAndWait(4, 18, vel);
-        vel = reloadvelADC4();
-    }
 }
