@@ -119,7 +119,7 @@ void* train_1(void* argc){
         pthread_mutex_unlock(&mtx_rail[rail2]);
 
         pthread_mutex_lock(&mutex[train1]);
-        t = times[&train1];
+        t = times[train1];
         pthread_mutex_unlock(&mutex[train1]);
 
         cout << "Train 1 is on railroad 3\n";
@@ -235,7 +235,7 @@ void* train_3(void* argc){
         pthread_mutex_unlock(&mtx_rail[rail8]);
 
         pthread_mutex_lock(&mutex[train3]);
-        t = times[&train3];
+        t = times[train3];
         pthread_mutex_unlock(&mutex[train3]);
 
         cout << "Train 3 is on railroad 5\n";
@@ -319,7 +319,7 @@ int main(){
                             ADC(AIN2), /* potentiometer - speed of the train 2 */
                             ADC(AIN6), /* potentiometer - speed of the train 3 */
                             ADC(AIN4)  /* potentiometer - speed of the train 4 */
-                          }
+                          };
 
     /* Setting threads priorities to the same ground */
     struct sched_param priority;
@@ -356,9 +356,9 @@ int main(){
 
         pthread_mutex_lock(&mutex[train1]);{
             times[train1].tv_sec = value / SECOND;
-            times[train1].tv_nsec = (valor % SECOND) * 1000000L;
+            times[train1].tv_nsec = (value % SECOND) * 1000000L;
             cout << "Sleeping time of train 1: " << times[train1].tv_sec << 
-                ":" times[train1].tv_nsec << "\n";
+                ":" << times[train1].tv_nsec << "\n";
         }
         pthread_mutex_unlock(&mutex[train1]);
 
@@ -368,9 +368,9 @@ int main(){
 
         pthread_mutex_lock(&mutex[train2]);{
             times[train2].tv_sec = value / SECOND;
-            times[train2].tv_nsec = (valor % SECOND) * 1000000L;
+            times[train2].tv_nsec = (value % SECOND) * 1000000L;
             cout << "Sleeping time of train 2: " << times[train2].tv_sec << 
-                ":" times[train2].tv_nsec << "\n";
+                ":" << times[train2].tv_nsec << "\n";
         }
         pthread_mutex_unlock(&mutex[train2]);
         
@@ -380,9 +380,9 @@ int main(){
 
         pthread_mutex_lock(&mutex[train3]);{
             times[train3].tv_sec = value / SECOND;
-            times[train3].tv_nsec = (valor % SECOND) * 1000000L;
+            times[train3].tv_nsec = (value % SECOND) * 1000000L;
             cout << "Sleeping time of train 3: " << times[train3].tv_sec << 
-                ":" times[train3].tv_nsec << "\n";
+                ":" << times[train3].tv_nsec << "\n";
         }
         pthread_mutex_unlock(&mutex[train3]);
 
@@ -392,9 +392,9 @@ int main(){
 
         pthread_mutex_lock(&mutex[train4]);{
             times[train4].tv_sec = value / SECOND;
-            times[train4].tv_nsec = (valor % SECOND) * 1000000L;
+            times[train4].tv_nsec = (value % SECOND) * 1000000L;
             cout << "Sleeping time of train 4: " << times[train4].tv_sec << 
-                ":" times[train4].tv_nsec << "\n";
+                ":" << times[train4].tv_nsec << "\n";
         }
         pthread_mutex_unlock(&mutex[train4]);
 
